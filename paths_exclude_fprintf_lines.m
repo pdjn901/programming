@@ -1,0 +1,41 @@
+%file_path = 'path/to/your/matlab/file.m';
+function result = paths_exclude_fprintf_lines(file_path)
+    % Read the contents of the file
+    fid = fopen(file_path, 'r');
+    file_contents = fread(fid, '*char').';
+    fclose(fid);    
+    % Find lines that contain fprintf statements
+    fprintf_lines = strfind(file_contents, 'fprintf');    
+    % Perform the replacement for '\' excluding '\n' and excluding fprintf lines
+    file_contents_new = '';
+    start_index = 1;
+    for i = 1:length(fprintf_lines)
+        % Append the portion of file_contents from the previous fprintf line to the current fprintf line
+        file_contents_new = [file_contents_new, regexprep(file_contents(start_index:fprintf_lines(i)-1), '\\([^n])', '/$1')];
+                
+        end_index = regexp(file_contents(fprintf_lines(i):end),'[;\n]', 'once');
+        if isempty(end_index)
+            warning('End of fprintf not found.');
+        end
+        end_index = end_index(1) + fprintf_lines(i) - 1;        
+        % Append the fprintf line without replacement
+        file_contents_new = [file_contents_new, file_contents(fprintf_lines(i):end_index)];       
+        % Update the start index for the next iteration
+        start_index = end_index + 1;
+    end 
+    % Append the portion of file_contents after the last fprintf line
+    file_contents_new = [file_contents_new, regexprep(file_contents(start_index:end), '\\([^n])', '/$1')];    
+    %full_file_name = fullfile(directory, all_items(i).name);
+    full_file_name = file_path;%*.m
+    fid = fopen(full_file_name, 'r');
+    file_contents = fread(fid, '*char').';
+    fclose(fid);
+    modified_contents = strrep(file_contents, '\', '/');
+    fid1 = fopen(full_file_name, 'w');
+    fwrite(fid1, modified_contents);
+    fclose(fid1);  
+    % Write the fprintf,back to the file
+    fid = fopen(file_path, 'w');
+    fwrite(fid, file_contents_new); %fprintf
+    fclose(fid);
+end
