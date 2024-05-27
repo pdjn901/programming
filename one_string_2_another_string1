@@ -1,0 +1,13 @@
+%09-May-24,Function for double back slash to single forward slash converion("\\" to "/") 
+function result = one_string_2_another_string1(file_path)
+    % Read the contents of the file
+    fid = fopen(file_path, 'r');
+    file_contents = fread(fid, '*char').';
+    fclose(fid);   
+   
+    modified_contents = strrep(file_contents, '\\', '//');
+        
+    fid = fopen(file_path, 'w');
+    fwrite(fid, modified_contents);
+    fclose(fid);
+end
