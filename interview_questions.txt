@@ -1,0 +1,694 @@
+//24-06-2024
+			
+// 	Interview Questions asked in Qualcomm		
+			
+// 	1.      Difference between 32-bit architecture and 64-bit architecture.		
+// 	Ans: 		
+			
+			
+			
+			
+			
+			
+			
+			
+// 	2.      Android Boot sequence 		
+// 	Ans:		
+// 	Step 1: Power On and System Startup		
+			
+// 	When we press the power button, the Boot ROM code starts executing from a pre-defined location in ROM. It loads the Bootloader into RAM and starts executing.		
+			
+// 	Step 2: Bootloader		
+			
+// 	The bootloader executes in two stages. In the first stage it detects external RAM and loads a program which helps in the second stage.		
+			
+// 	Step 3: Kernel		
+			
+// 	As the kernel launches, is starts to setup cache, protected memory, scheduling and loads drivers. When the kernel finishes the system setup, it looks for “init” in the system files.		
+			
+// 	Step 4: init process		
+// 	Init is the very first process, we can say it is a root process, or the grandfather of all processes. The init process has two responsibilities.		
+			
+// 	     1- Mounts directories like /sys , /dev    or /proc		
+// 	     2- Runs init.rc script		
+			
+// 	Step 5: Zygote and Dalvik		
+			
+// 	Zygote is a virtual machine process that starts at system boot. The Zygote preloads and initializes core library classes.		
+			
+// 	Step 6: System service		
+			
+// 	After the above steps are completed,  Zygote launches the system services.  The Zygote forks a new process to launch the system services.		
+// 	Core services:		
+// 	·         Starting power manager		
+// 	·         Creating the Activity Manager		
+// 	·         Starting telephony registry		
+// 	·         Starting battery service		
+// 	·         Starting alarm manager		
+// 	·         Starting sensor service		
+// 	·         Starting Bluetooth service		
+// 	·         Starting mount service		
+			
+			
+			
+			
+			
+// 	3.      Where are queues used inside the kernel?		
+// 	Ans: Work queues, message queues, wait queues, ready queues, run queues		
+// 	4.      Difference between thread and process		
+			
+			
+			
+			
+			
+			
+			
+			
+			
+// 	5.      How do we start writing driver code?		
+// 	Ans:		
+// 	#include <linux/kernel.h>		
+// 	#include <linux/init.h>		
+// 	#include <linux/module.h>		
+// 	#include <linux/kdev_t.h>		
+// 	#include <linux/fs.h>		
+// 	#include <linux/cdev.h>		
+// 	#include <linux/device.h>		
+// 	#include<linux/slab.h>                 //kmalloc()		
+// 	#include<linux/uaccess.h>              //copy_to/from_user()		
+			
+			
+// 	#define mem_size        1024		
+			
+// 	dev_t dev = 0;		
+// 	static struct class *dev_class;		
+// 	static struct cdev etx_cdev;		
+// 	uint8_t *kernel_buffer;		
+			
+// 	static int __init etx_driver_init(void);		
+// 	static void __exit etx_driver_exit(void);		
+// 	static ssize_t etx_read(struct file *filp, char __user *buf, size_t len,loff_t * off);		
+// 	static struct file_operations fops =		
+// 	{		
+// 	        .owner          = THIS_MODULE,		
+// 	        .read           = etx_read,		
+// 	};		
+			
+// 	static ssize_t etx_read(struct file *filp, char __user *buf, size_t len, loff_t *off)		
+// 	{		
+// 	        copy_to_user(buf, kernel_buffer, mem_size);		
+// 	        printk(KERN_INFO "Data Read : Done!\n");		
+// 	        return mem_size;		
+// 	}		
+			
+// 	static int __init etx_driver_init(void)		
+// 	{		
+// 	        /*Allocating Major number*/		
+// 	        if((alloc_chrdev_region(&dev, 0, 1, "etx_Dev")) <0){		
+// 	                printk(KERN_INFO "Cannot allocate major number\n");		
+// 	                return -1;		
+// 	        }		
+// 	        printk(KERN_INFO "Major = %d Minor = %d \n",MAJOR(dev), MINOR(dev));		
+			
+// 	        /*Creating cdev structure*/		
+// 	        cdev_init(&etx_cdev,&fops);		
+			
+// 	        /*Adding character device to the system*/		
+// 	        if((cdev_add(&etx_cdev,dev,1)) < 0){		
+// 	            printk(KERN_INFO "Cannot add the device to the system\n");		
+// 	            goto r_class;		
+// 	        }		
+			
+// 	        /*Creating struct class*/		
+// 	        if((dev_class = class_create(THIS_MODULE,"etx_class")) == NULL){		
+// 	            printk(KERN_INFO "Cannot create the struct class\n");		
+// 	            goto r_class;		
+// 	        }		
+			
+// 	        /*Creating device*/		
+// 	        if((device_create(dev_class,NULL,dev,NULL,"etx_device")) == NULL){		
+// 	            printk(KERN_INFO "Cannot create the Device 1\n");		
+// 	            goto r_device;		
+// 	        }		
+// 	        printk(KERN_INFO "Device Driver Insert...Done!!!\n");		
+// 	    return 0;		
+			
+// 	r_device:		
+// 	        class_destroy(dev_class);		
+// 	r_class:		
+// 	        unregister_chrdev_region(dev,1);		
+// 	        return -1;		
+// 	}		
+			
+// 	void __exit etx_driver_exit(void)		
+// 	{		
+// 	        device_destroy(dev_class,dev);		
+// 	        class_destroy(dev_class);		
+// 	        cdev_del(&etx_cdev);		
+// 	        unregister_chrdev_region(dev, 1);		
+// 	    printk(KERN_INFO "Device Driver Remove...Done!!!\n");		
+// 	}		
+			
+// 	module_init(etx_driver_init);		
+// 	module_exit(etx_driver_exit);		
+			
+// 	MODULE_LICENSE("GPL");		
+// 	MODULE_VERSION("1.4");		
+			
+			
+			
+			
+			
+// 	6.      Memory leak- example		
+// 	Ans:		
+// 	Memory leak occurs when programmers create a memory in heap and forget to delete it.		
+// 	Memory leaks are particularly serious issues for programs like daemons and servers which by definition never terminate.		
+// 	let say you created 4 bytes in heap but just freed 2 bytes of them. So the other 2 bytes is leaked and considering you are in long loop in each iteration you are going to lose 2 bytes of memory and in the long run there would be no memory left over to use. in order to detect memory leakage you can use Valgrind which is a tool created for that purpose.		
+			
+// 	Ex:1. Void func()		
+// 	{ int *ptr= (int*)malloc(sizeof(int));		
+// 	Return;		
+// 	}		
+// 	Soln: 		
+// 	Void func()		
+// 	{ int *ptr= (int*)malloc(sizeof(int));		
+// 	Free(ptr);		
+// 	Return;		
+// 	}		
+			
+// 	Ex: 2. Void func()		
+// 	{ char *ptr= (char*)malloc(10);		
+// 	Ptr = = (char*)malloc(20);		
+			
+// 	Return;		
+// 	}		
+			
+// 	7.      Causes of segmentation fault		
+// 	Ans:		
+// 	a.      Accessing an array out of bounds		
+			
+// 	b. Dereferencing NULL pointers		
+// 	c. Dereferencing freed memory		
+// 	d. Dereferencing uninitialized pointers		
+// 	e. Incorrect use of the "&" (address of) and "*" (dereferencing) operators		
+// 	f. Improper formatting specifiers in printf and scanf statements		
+// 	g. Stack overflow		
+// 	h. Writing to read-only memory		
+			
+			
+// 	8.      When do we use register keyword		
+// 	Ans:		
+// 	Register keyword tells compiler to store the particular variable in CPU registers instead of memory so that it could be accessible fast. From a programmer's point of view register keyword is used for the variables which are heavily used in a program, so that compiler can speedup the code.		
+// 	Ex:1.		
+// 	Void main()		
+// 	{		
+// 	Register int i=10;		
+// 	Int *a = &i;		
+// 	Printf(“%d”,*a);		
+// 	Getchar();		
+// 	Return 0;		
+// 	}		
+			
+// 	Ex:2.		
+// 	Void main()		
+// 	{		
+// 	Int i=10;		
+// 	Register int * a=&i;		
+// 	Printf(“%d”,*a);		
+// 	Getchar();		
+// 	Return 0;		
+// 	}		
+			
+// 	9.      Inline functions		
+// 	Ans:   These are function whose definitions are small and be substituted at the place where its function call is happened.		
+// 	·         A normal function becomes inline function when function prototype of the function is prepended with keyword “inline”.		
+// 	·         The property of inline function is, compiler inserts the entire body of the function in the place where inline function name is used in the program.		
+// 	·         Advantage of inline function is, it does not require function call and does not return anything from the function.		
+// 	Disadvantage of inline function is-		
+// 	·         It increases file size as same function code is copied again and again in the program wherever it is called.		
+// 	·         Inline functions are mostly used for small computations. They are not suitable when large computing is involved.		
+			
+// 	Ex:		
+// 	inline int add(int a, int b)		//inline function declaration
+// 	{		
+// 		return(a+b);	
+// 	}		
+// 	int main()		
+// 	{		
+// 		int c=add(10,20);	
+// 		printf("Addition:%d\n",c);	
+// 		getch();	
+// 	}		
+			
+			
+			
+			
+			
+// 	10.  Program to toggle alternate bits		
+// 	Ans: 		
+// 	#include <stdio.h>		
+// 	int main()		
+// 	{		
+// 	    int num,i, newnum, mask=1;		
+// 	    /* Input number from user */		
+// 	    printf("Enter any number: ");		
+// 	    scanf("%d", &num);		
+// 	  for(i=0;i<255;i=i+2)		
+// 	  {		
+// 	      mask= mask| (1<<i);		
+// 	   }		
+// 	   newnum = num^mask;		
+// 	    printf("Number before toggling : %d \n", num);		
+// 	    printf("Number after toggling alternate bit with %d  : %d \n", mask,newnum);		
+			
+// 	    return 0;		
+// 	}		
+			
+// 	11.  What is the use of static? Where do we use? Where is the static variable stored in memory?		
+// 	Ans:  A static int variable remains in memory while the program is running. A normal or auto variable is destroyed when a function call where the variable was declared is over. Unlike global functions in C, access to static functions is restricted to the file where they are declared. Therefore, when we want to restrict access to functions, we make them static. 		
+// 	Ex: 1. #include<stdio.h>		
+			
+// 	void func_1();		
+// 	int a, b = 10;		
+			
+// 	int main()		
+// 	{		
+// 	    func_1();		
+// 	    func_1();		
+// 	    func_1();		
+			
+// 	    // signal to operating system everything works fine		
+// 	    return 0;		
+// 	}		
+			
+// 	void func_1()		
+// 	{		
+// 	    int a = 1;		
+// 	    static int b = 100;		
+// 	    printf("a = %d\n", a);		
+// 	    printf("b = %d\n\n", b);		
+// 	    a++;		
+// 	    b++;		
+// 	}		
+			
+// 	Ex: 2		
+// 	static int fun(void) 		
+// 	{ 		
+// 	  printf("I am a static function "); 		
+// 	} 		
+			
+			
+			
+			
+			
+			
+// 	12.  Types of drivers – char, block and usb – examples and differences		
+// 	Ans:		
+// 	CHAR 	BLOCK	USB
+// 	Accessed as a stream of sequential data one byte after another	Hardware devices that randomly access fixed size chunk of data	USB drivers live between different subsystems(char, network, block) and hardware controller
+// 	No buffering required	Accessed through cache so buffering is needed	USB device drivers stack has protocol specification for any device that connects
+// 	Abbreviated as cdev	Abbreviated as blkdev	
+// 	has only one position- current one. It can’t move back and forth	navigates back and forth between any location on media.	
+// 	Less complex	More complex than block device and managing within kernel needs more work	
+// 	Keyboard device, serial port	Hard disk, Pen drive, SD card	Mouse, printer
+			
+			
+			
+// 	13.  How do user space and kernel space communicate with each other?		
+// 	Ans: 		
+// 	User space and kernel space communicate through:		
+// 	·         system calls, 		
+// 	·         ioctl commands,		
+// 	·         mmap, 		
+// 	·         netlink sockets, 		
+// 	·         virtual filesystems, e.g. /proc, /sys, configfs, relayfs, 		
+// 	·         poll() / epoll() & related		
+			
+			
+			
+			
+			
+// 	14.  Difference between mutex and spin lock		
+// 	Ans: 		
+// 	SPINLOCK	MUTEX	
+			
+			
+// 	Preemption disabled	Preemption enabled	
+// 	Can be used in interrupts	Cant be used in interrupts	
+// 	After holding lock process cant sleep	After holding lock process can sleep	
+// 	Lock is held for fixed deterministic term	Lock is held for variable times	
+// 	Lock protects atomic data units	Lock protects large data units with variable  access time	
+// 	Fully atomic (non blocking) critical code	Critical code contains possible blocking calls	
+			
+// 	15.  Difference between mutex and semaphore		
+// 	Ans: 		
+			
+			
+			
+			
+			
+			
+			
+			
+// 	16.  What are the scheduling mechanisms used?		
+// 	Ans: 		
+// 	OS scheduling algorithms are		
+			
+// 	First-Come, First-Served (FCFS) Scheduling		
+// 	Shortest-Job-Next (SJN) Scheduling		
+// 	Priority Scheduling		
+// 	Shortest Remaining Time		
+// 	Round Robin(RR) Scheduling		
+// 	Multiple-Level Queues Scheduling		
+// 	Some commonly used RTOS scheduling algorithms are:		
+// 	·         Cooperative scheduling		
+// 	·         Preemptive scheduling		
+// 	o    Rate-monotonic scheduling		
+// 	o    Round-robin scheduling		
+// 	o    Fixed priority pre-emptive scheduling, an implementation of preemptive time slicing		
+// 	o    Fixed-Priority Scheduling with Deferred Preemption		
+// 	o    Fixed-Priority Non-preemptive Scheduling		
+// 	o    Critical section preemptive scheduling		
+// 	o    Static time scheduling		
+// 	·         Earliest Deadline First approach		
+// 	·         Stochastic digraphs with multi-threaded graph traversal		
+			
+			
+// 	17.  Difference between OS and real time OS 		
+// 	Ans:		
+// 	RTOS	GPOS	
+// 	Deterministic and time bound: no random execution pattern	Random execution pattern	
+// 	Predictable response time- used for time critical systems	Response time not guaranteed- can be used in systems that are not time critical	
+// 	Synchronization is achieved	Synchronization is problem	
+// 	Preemptive Scheduling based on priority	Time sharing or round robin scheduling. GPOS is programmed to handle scheduling to achieve high throughput	
+// 	Example: Contiki, FreeRTOS, RTLinux	MS Windows, Apple, MAC OS, Red Hat	
+// 	Use : Embedded computing- ATM, air traffic controller	Use: desktop, laptop,tablet computer	
+			
+			
+// 	18.  What is top half and bottom half mechanisms?		
+// 	Ans: To avoid significant impact to process execution and also to respond quickly enough to interrupts, interrupt servicing is usually split into two parts: a “top” and “bottom” half. 		
+// 	The top half executes at interrupt time and is meant to be short enough to complete all necessary actions at the time of the interrupt. 		
+// 	The bottom half can be deferred to a more suitable point in time to complete servicing of a prior interrupt. 		
+// 	There are 4 bottom half mechanisms are available in Linux:		
+// 	1.      Work-queue		
+// 	2.      Threaded IRQs		
+// 	3.      Softirqs		
+// 	4.      Tasklets		
+			
+			
+// 	19.  How are the bottom half techniques? Differences between tasklets and work queues		
+// 	Ans:		
+// 	WORKQUEUES	TASKLETS	
+// 	Used If the deferred work needs to sleep	Sleep not possible as it is atomic	
+// 	More latency compared to tasklets	Less latency	
+// 		 executed by the principle of non-preemptive scheduling	
+// 		Different tasklets can be running in parallel. But at the same time, a tasklet cannot be called concurrently with itself, as it runs on one CPU only	
+			
+			
+			
+// 	20.  How to delete a node in LL – all possibilities – optimize		
+// 	Ans: 		
+			
+// 	//Deletion of first node		
+			
+// 	tmp = start; //tmp is assigned address of first node		
+			
+// 	start = start->link; //start is assigned address of second node		
+			
+			
+			
+// 	//Deletion of only node		
+// 	tmp = start;		
+// 	start = NULL; //Also start = start->link is correct		
+			
+			
+// 	//Deletion at the end of list		
+			
+// 	struct node *deletion(struct node *start,int data)		
+// 	{		
+// 	struct node *tmp, *p;		
+// 	if(start == NULL)		
+// 	{		
+// 	printf("list is empty\n");		
+// 	return start;		
+// 	}		
+// 	if(start->info==data) //Deletion of first node		
+// 	{		
+// 	tmp = start;		
+// 	start = start->link;		
+// 	free(tmp);		
+// 	return start;		
+// 	}		
+// 	p = start; //Deletion in between or at the end		
+// 	while(p->link!= NULL)		
+// 	{		
+// 	if(p->link->info==data)		
+// 	{		
+// 	tmp = p->link;		
+// 	p->link = tmp->link;		
+// 	free(tmp);		
+// 	return start;		
+// 	}		
+// 	p = p->link;		
+// 	}		
+// 	printf("element not found\n");		
+// 	return start;		
+// 	}		
+			
+			
+// 	//Deletion of in between list nodes		
+			
+// 	p = start;		
+			
+// 	while(p->link!=NULL)		
+// 	{		
+// 	if(p->link->info==data)		
+// 	{		
+// 	tmp = p->link;		
+// 	p->link = tmp->link;		
+// 	free(tmp);		
+// 	return start;		
+// 	}		
+// 	p = p->link;		
+// 	}		
+			
+			
+// 	21.  Few system calls and its uses		
+// 	Ans:		
+// 	fork()- clones processes		
+// 	Kill()- sets termination signal		
+// 	Exit()- program terminates its execution		
+// 	Wait()- parent process waits for child process		
+			
+			
+// 	22.  Linux boot up process completely		
+// 	Ans: 		
+			
+			
+			
+// 	23.  Task_struct data structure – members		
+			
+// 	Ans: The kernel stores the list of processes in a circular doubly linked list called the task list3. Each element in the task list is a process descriptor of the type struct task_struct, which is defined in <linux/sched.h>. The task structure contains all the information about a specific process that the kernel has and needs about a process. The task structure contains the data that describes the executing program: 		
+			
+// 	-process ID		
+			
+// 	-parent PID		
+			
+// 	- process's address space		
+			
+// 	-file des table		
+			
+// 	-signal disposition table		
+			
+// 	-page table		
+			
+// 	-pending signal info		
+			
+// 	-blocked signal list		
+			
+// 	-handler table		
+			
+// 	-CPU states		
+			
+// 	-stack pointer, base pointer, instruction pointer		
+			
+			
+			
+// 	24.  What is priority inversion, priority inheritance, priority ceiling?		
+// 	Ans: 		
+// 	A scenario in scheduling in which a high priority task is indirectly preempted by a lower priority task effectively inverting the relative priorities of the two tasks.		
+// 	Priority inheritance- temporarily elevates the priority of the low priority task that is executing to the highest priority task that needs the resource. This means that medium priority tasks cannot intervene and lead to priority inversion.		
+// 	Priority Ceiling- All of the resources are assigned a priority that is equal to the highest priority of any task that may attempt to claim them. This helps in avoiding priority inversion.		
+			
+			
+// 	25.  Where are the file operations stored and how are they initiated?		
+// 	Ans: Stored in file operation structure available in virtual kernel memory. To initiate that we have to create an instance and assign required functions to the members.		
+			
+// 	26.  How is memory allocated to the driver? 		
+// 	Ans: void *kmalloc(size_t size, gfp_t flags);		
+			
+			
+// 	27.  What is kernel panic?		
+// 	Ans: A computer error from which an OS cannot easily or quickly recover. Applied to UNIX based systems.		
+// 	28.  How to boot the kernel after panic has occurred		
+// 	Ans: On occurrence of kernel panic, the kernel routines are designed so that it outputs an error message to the console and dump an image of kernel memory to disk for debugging and then either wait for the system to be manually rebooted, or initiate an automatic reboot.		
+			
+// 	29.  How to debug the log after kernel panic?		
+// 	Ans: Utility tools like crash, kdump, kexec, object or dump help to debug panic to capture full memory dump and analyze cause of panic.		
+			
+// 	30.  What is the use of volatile keyword in real time		
+// 	Ans: 		
+// 	The volatile keyword is intended to prevent the compiler from applying any optimizations on objects that can change in ways that cannot be determined by the compiler.		
+// 	USE: A variable should be declared volatile whenever its value could change unexpectedly. In practice, only three types of variables could change:		
+// 	·         Memory-mapped peripheral registers		
+// 	·         Global variables modified by an interrupt service routine: The code reading data port must be declared as volatile in order to fetch latest data available at the port. Failing to declare variable as volatile, the compiler will optimize the code in such a way that it will read the port only once and keeps using the same value in a temporary register to speed up the program (speed optimization). In general, an ISR used to update these data port when there is an interrupt due to availability of new data		
+// 	·         Global variables within a multi-threaded application		
+			
+			
+// 	31.  What happens when an interrupt occurs – complete flow from registering, interrupt trigger and handling		
+// 	Ans:		
+// 	Interrupt Trigger and handling-Each device that generates interrupts has an associated interrupt handler.		
+// 	When devices need to raise interrupt they signal the interrupt controller, which then prioritizes the interrupts and presents the highest-priority interrupt to the CPU.		
+// 	If “global” interrupts are disabled, the CPU will ignore requests from the interrupt controller, but they will be held pending by the interrupt controller until the CPU re-enables interrupts.		
+// 	The CPU stops executing the instructions that it was executing and jumps to a location in memory that either contains the interrupt handling code or an instruction branching to the interrupt handling code. This code usually operates in a special mode for the CPU, interrupt mode, and, normally, no other interrupts can happen in this mode. 		
+// 	It often has its own stack, which it uses to store the CPU's execution state (all of the CPU's normal registers and context) before it goes off and handles the interrupt. Some CPUs have a special set of registers that only exist in interrupt mode, and the interrupt code can use these registers to do most of the context saving it needs to do.		
+// 	When the interrupt has been handled, the CPU's state is restored and the interrupt is dismissed. The CPU will then continue to doing whatever it was doing before being interrupted.		
+			
+// 	Registering the interrupts- Each device has one associated driver and, if that device uses interrupts, then that driver must register one interrupt handler.		
+// 	 /* request_irq: allocate a given interrupt line */		
+// 	int request_irq(unsigned int irq,		
+// 	irq_handler_t handler,		
+// 	unsigned long flags,         		
+// 	const char *name,    		
+// 	void *dev)		
+// 	Return		
+// 		returns zero on success and nonzero value indicates an error.	
+			
+			
+// 	32.  How does address mapping occur for physical and virtual addresses? – flow of page table entries and look up 		
+// 	Ans: MMU is enabled, it translates the virtual addresses generated by CPU into physical addresses of main memory through a process called paging. The page table is where the operating system stores its mappings of virtual addresses to physical addresses, with each mapping also known as a page table entry (PTE). There is also auxiliary information about the page such as a present bit, a dirty or modified bit, address space or process ID information, amongst others.		
+// 	33.  What happens when the physical address is not found in the table?		
+// 	Ans: Page fault occurs.		
+// 	·         The computer hardware traps to the kernel and program counter (PC) is saved on the stack. Current instruction state information is saved in CPU registers.		
+// 	·         Operating system finds that a page fault has occurred and tries to find out which virtual page is needed. Some times hardware register contains this required information. If not, the operating system must retrieve PC, fetch instruction and find out what it was doing when the fault occurred.		
+// 	·         Once virtual address caused page fault is known, system checks to see if address is valid.		
+// 	·         If the virtual address is valid, the system checks to see if a page frame is free. If no frames are free, the page replacement algorithm is run to remove a page.		
+// 	·         If frame selected is corrupted, page is scheduled for transfer to disk, context switch takes place, fault process is suspended and another process is made to run until disk transfer is completed.		
+// 	·         As soon as page frame is clean, operating system looks up disk address where needed page is, schedules disk operation to bring it in.		
+// 	·         When disk interrupt indicates page has arrived, page tables are updated to reflect its position, and frame marked as being in normal state.		
+// 	·         Faulting instruction is backed up to state it had when it began and PC is reset. Faulting is scheduled, operating system returns to routine that called it.		
+// 	·         Assembly Routine reloads register and other state information, returns to user space to continue execution.		
+			
+// 	=====================================E N D====================================		
+
+
+
+======AMD interview questions
+Q1) Mutex vs spinlock?
+Ans) https://stackoverflow.com/questions/29175609/what-is-the-difference-between-binary-semaphore-and-mutex
+Q2) // [Yesterday 2:13 PM] Palli Durga Jagadeesh
+// //20-03-2024
+ 
+// //Theory Part:
+
+// 1)  Dangling Pointer in C Programming?
+
+// 2)  What is Linked List?
+
+// 3)  Advantages of arrays over LinkedList?
+
+// 4)  Explain static keywords.
+
+// 5)  difference b\w malloc and calloc?
+
+// 6)  Explain memory segments.
+
+// 7)  Explain Storage classes.?
+
+// 8)  What is the size of char and int in a 64-bit system?
+
+// 9)  how to find the order of program?
+
+// 10) How Function pointers related in ISR
+
+// 11) What is a memory leak?
+
+// 12) Explain memory segments,Causes of segmentation fault?
+
+// 13) What is structure & structure padding & how to avoid structure padding?
+
+// 14) What is function pointer and advantages?
+
+// 15) What are the applications of call back functions in C?
+
+// 16) Reverse the given string?
+//  17) what is structure&union?
+// 18) 
+ 
+// //Coding Part:
+
+// 10) What is the output of the following program?
+
+//       int arr[] = {10,20,30,40,50,60}
+
+//       int *ptr = &arr[0];
+
+//       ++(*ptr);
+
+// 11) write a program to implement function pointer?
+
+// 12) Remove white spaces in between a string.?
+
+// 13) Write a program to reverse the given number(int a = 2468;)?
+
+// 14) Write a logic for Deletion of Linked List element?
+
+// 15) Write a logic to delete second index element from an array?
+
+// 16) write a logic to find middle node of linkedlist?
+
+// 17) Write a logic for Insertion in Linked list?
+
+// 18) Write a logic for structures with pointer without pointer
+
+// 19) WAP to find given number prime or not(code)
+
+// 20) Write a program to find the highest duplicate num in the array.?
+
+// 21) Write a function to store the value in 33rd byte using void pointer,& set 3rd bit in same place.?
+
+// 22) Write a logic to convert Big endian to Little Endian (input is unsigned int a = 0x1234;)?
+
+// 23) Write a logic to find the highest duplicate num in the array.?
+
+// 24) Write a logic to count set bits in each number without bitwise operators.
+
+// 25) Set a bit in the particular position.?
+ 
+ //26) how many ways linux userspace can speak to kernel space?
+    //   ANs) 1)write();-->copy_from_user();--
+            //   2)mmap();-->requests memory from the virtual space.
+            #include <sys/mman.h>
+
+    //   void *mmap(void addr[.length], size_t length, int prot, int flags,
+    //               int fd, off_t offset);
+    //   int munmap(void addr[.length], size_t length);
+//Q) can cile oerTIONS ACCESS THE KERNEL SPACE?
+//Q) difference between the mutex and spinlock?
+     mutex:- mutex_lock() and mutex_unlock(); 
+     spinlock:- busywait();//~ thread,lock keep waits for the shared resource at the door of home. once resource awailable then thread locks the door(i.e, 0~~ resorce available, 1~~resource locked)
+                           //It is pertty much a loop that keeps going till a certain condition is met:
+                            // while(cantGoOn) {};
+                            //int status =0; sleep(status){//cannot go in,and; //status = 1; //now can go in while loop.
+                            //https://www.geeksforgeeks.org/difference-between-spinlock-and-semaphore/
+                            /*
+                                Mutex has owner field -- thread that currently entered mutex. It provides various benefits like re-enterable mutexes, priority inversion, etc.
+                                While semaphore is usually blocks thread that fails to acquire it, mutex may be adaptive (like in Solaris) that could spin (busy-wait until mutex is unlocked).
+                                Semaphore usually implemented via incrementing/decrementing counter, but mutexes may use atomic exchange and test operations.
+                                //https://stackoverflow.com/questions/29175609/what-is-the-difference-between-binary-semaphore-and-mutex
+                                
+                            */
+                            
+
+
+
