@@ -1,0 +1,79 @@
+//Q) how core dump happens?
+//https://www.youtube.com/watch?v=qZ1oQLu7M5Y
+
+
+Q) procedure to coredump in register level.
+//https://www.youtube.com/watch?v=3MsiN27xE4c
+$objdump -h core
+$objdump -h main
+   //note: here core is executablefile ~~~./a/cout
+$gdb ./a.out core
+   error SEGEV at 0x0000555555555371
+$dissassebmle 0x0000555555555371   //here 0x0005555.. is the address of the error.
+    //error: => 0x0000555555555371 <+109>:   mov    %ecx,(%rdx,%rax,1)
+    (gdb) print $rax
+    $6 = 93824992247872
+    (gdb) print/c $rax
+    $7 = 64 '@'
+
+(gdb) print/c $rdx
+$10 = -96 '\240'
+(gdb)print $rsp
+$11 = (void *) 0x7fffffffd8d0
+(gdb) print $rbp
+$12 = (void *) 0x7fffffffd8f0
+
+(gdb) info registers 
+    rax            0x555555558040      93824992247872
+    rbx            0x555555555590      93824992236944
+    rcx            0xa                 10
+    rdx            0xffffffffffffc4a0  -15200
+    rsi            0x0                 0
+
+$bt
+$info frame
+
+
+(gdb) bt
+#0  0x0000555555555371 in callAllCompartmentMembersInTest ()
+#1  0x00005555555552c3 in main ()
+(gdb) info frame
+Stack level 0, frame at 0x7fffffffd900:
+ rip = 0x555555555371 in callAllCompartmentMembersInTest; saved rip = 0x5555555552c3
+ called by frame at 0x7fffffffd920
+ Arglist at 0x7fffffffd8c8, args: 
+ Locals at 0x7fffffffd8c8, Previous frame's sp is 0x7fffffffd900
+ Saved registers:
+  rbp at 0x7fffffffd8f0, rip at 0x7fffffffd8f8
+(gdb) print $rbp
+$13 = (void *) 0x7fffffffd8f0
+(gdb) print $rbp+4
+$14 = (void *) 0x7fffffffd8f4
+(gdb) print $rbp+8
+$15 = (void *) 0x7fffffffd8f8
+
+(gdb) x/10xw $rip
+0x555555555371 <callAllCompartmentMembersInTest+109>:   0x0f020c89      0x89ff45be      0xfd31e8c7      0x8b48ffff
+0x555555555381 <callAllCompartmentMembersInTest+125>:   0x02017a05      0xc7894800      0xfffd62e8      0x74c085ff
+0x555555555391 <callAllCompartmentMembersInTest+141>:   0x9001eb86      0xc9e8458b
+(gdb) info files 
+Symbols from "/home/jayakrishna/programs/c/main".
+Native process:
+        Using the running image of child process 27752.
+        While running this, GDB does not access memory from...
+Local exec file:
+        `/home/jayakrishna/programs/c/main', file type elf64-x86-64.
+        Entry point: 0x555555555120
+        0x0000555555554318 - 0x0000555555554334 is .interp
+
+
+
+
+
+
+
+
+
+
+0x2ccf(%rip),%rax
+%ecx,(%rdx,%rax,1)
