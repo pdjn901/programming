@@ -1,6 +1,92 @@
 //Q) how core dump happens?
 //https://www.youtube.com/watch?v=qZ1oQLu7M5Y
 
+Q) give Few gdb core dump commands with respect to code.
+Ans) 
+/*code
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    // int *ptr = malloc(sizeof(int));
+    int *ptr;
+    if (ptr == NULL) {
+        printf("Memory allocation failed\n");
+        // return 1;
+    }
+
+    free(ptr);   // Free the allocated memory
+    ptr[0] = 10; // Assign a value
+
+    printf("ptr[0]:%d\n", ptr[0]); // Attempt to access freed memory
+    return 0;
+}
+
+*/
+$gcc -Wall -o mem_segment mem_segment_fault.c
+
+$objdump -h core
+$objdump -h main
+$gdb ./a.out core
+$dissassebmle 0x0000555555555371   //here 0x0005555.. is the address of the error.
+    //error: => 0x0000555555555371 <+109>:   mov    %ecx,(%rdx,%rax,1)
+    (gdb) print $rax
+    $6 = 93824992247872
+    (gdb) print/c $rax
+    $7 = 64 '@'
+(gdb) print/c $rdx
+      $10 = -96 '\240'
+(gdb)print $rsp
+     $11 = (void *) 0x7fffffffd8d0
+(gdb) print $rbp
+     $12 = (void *) 0x7fffffffd8f0
+
+(gdb) info registers 
+    rax            0x555555558040      93824992247872
+
+(gdb) bt
+      #0  0x0000555555555371 in callAllCompartmentMembersInTest ()
+#1  0x00005555555552c3 in main ()
+      (gdb) info frame
+Stack level 0, frame at 0x7fffffffd900:
+      rip = 0x555555555371 in callAllCompartmentMembersInTest; saved rip = 0x5555555552c3
+ (gdb) info Stack
+        #0  0x00005555555551b8 in main ()
+(gdb) info all-registers
+      //it will list all data in your program including problem line.
+(gdb) disassemble 0x00005555555551b8
+    => 0x00005555555551b8 <+47>:    movl   $0xa,(%rax) 
+(gdb) disassemble 0x00005555555551b8
+   Dump of assembler code for function main:
+   0x0000555555555189 <+0>:     endbr64 
+   0x000055555555518d <+4>:     push   %rbp                     //(i.e, saves the base pointer onto the Stack. This register(rbp) is often used to frame the current function's stack usage.)
+   0x000055555555518e <+5>:     mov    %rsp,%rbp               //(i.e,base pointer stores the address available in Stack Pointer)
+   0x0000555555555191 <+8>:     sub    $0x10,%rsp              //(i.em loads the 0x10 address to the stack pointer register)
+   0x0000555555555195 <+12>:    cmpq   $0x0,-0x8(%rbp)          //(i.e, compares the value at the memory location 8-bytes below hte base pointer( -0x8(%rbp)))
+   0x000055555555519a <+17>:    jne    0x5555555551a8 <main+31>
+   0x000055555555519c <+19>:    lea    0xe61(%rip),%rdi        # 0x555555556004     //(i.e, like print(), loads the address of string(~Hello world) into the register "%rdi" lea.(loading effective address-0x555555556004 ))
+   0x00005555555551a3 <+26>:    callq  0x555555555080 <puts@plt>
+   0x00005555555551a8 <+31>:    mov    -0x8(%rbp),%rax
+   0x00005555555551ac <+35>:    mov    %rax,%rdi
+   0x00005555555551af <+38>:    callq  0x555555555070 <free@plt>
+   0x00005555555551b4 <+43>:    mov    -0x8(%rbp),%rax
+=> 0x00005555555551b8 <+47>:    movl   $0xa,(%rax)                             //problem in this line, trying to write into read only memeory("ro" or @0xa)
+   0x00005555555551be <+53>:    mov    -0x8(%rbp),%rax
+   0x00005555555551c2 <+57>:    mov    (%rax),%eax
+   0x00005555555551c4 <+59>:    mov    %eax,%esi
+   0x00005555555551c6 <+61>:    lea    0xe50(%rip),%rdi        # 0x55555555601d    //(i.e, lea==loading effective address, loads the address of another string into the %rdi, which is likey to printf(),(i.e, here, "rdi" watch is often used as a first argument for systemcall), here, "%rip" is simillar to PC(program counter, which stores next instruction of execution))
+   0x00005555555551cd <+68>:    mov    $0x0,%eax                                //(i.e, sets the function return value to 0)
+   0x00005555555551d2 <+73>:    callq  0x555555555090 <printf@plt>
+   0x00005555555551d7 <+78>:    mov    $0x0,%eax
+   0x00005555555551dc <+83>:    leaveq 
+   0x00005555555551dd <+84>:    retq   
+End of assembler dump.
+
+            //note: (i.e, general registers such as -->%rdi(first argument or pointer, usually for systemcall, and return types),%rsi(second argument/pointer),%rdx(third argument), %rcx(fourth argument), if any extra Arguments overflowing then pushed into the stack)
+            //(i.e, rdi-->REGISTER DESTINATION INDEX, rsi-->REGISTER source INDEX )
+
+(gdb) print $rax
+
 
 Q) procedure to coredump in register level.
 //https://www.youtube.com/watch?v=3MsiN27xE4c
@@ -23,7 +109,7 @@ $11 = (void *) 0x7fffffffd8d0
 (gdb) print $rbp
 $12 = (void *) 0x7fffffffd8f0
 
-(gdb) info registers 
+(gdb) info registers            //(i.e, //https://sourceware.org/gdb/current/onlinedocs/gdb.html/Registers.html    )
     rax            0x555555558040      93824992247872
     rbx            0x555555555590      93824992236944
     rcx            0xa                 10
