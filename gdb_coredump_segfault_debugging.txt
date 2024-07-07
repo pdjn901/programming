@@ -1,4 +1,4 @@
-//Q) how core dump happens?
+//Q) how memory segmentation?, and how core dump in debugging using gdb?
 //https://www.youtube.com/watch?v=qZ1oQLu7M5Y
 
 Q) give Few gdb core dump commands with respect to code.
